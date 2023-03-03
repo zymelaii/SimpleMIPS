@@ -1,0 +1,11 @@
+* text=auto
+
+*.h text linguist-language=C
+*.v text
+*.sv text
+
+Makefile text eol=lf
+*.sh text eol=lf
+
+*.doc* binary
+*.pdf binary
