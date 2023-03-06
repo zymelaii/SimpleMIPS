@@ -3,7 +3,7 @@
 <!--                                                         -->
 <!-- Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.   -->
 
-<Project Version="7" Minor="61" Path="E:/Storage/FreeSpace/workspace/SimpleMIPS/share/cpu132_gettrace/run_vivado/cpu132_gettrace/cpu132_gettrace_v2022.2.xpr">
+<Project Version="7" Minor="61">
   <DefaultLaunch Dir="$PRUNDIR"/>
   <Configuration>
     <Option Name="Id" Val="8be32c0e75274db89ff01e49e80abbee"/>
