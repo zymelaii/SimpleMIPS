@@ -6,3 +6,14 @@
 *.o
 *.obj
 *.exe
+
+# Vivado output
+*.jou
+*.log
+*.sim/
+*.hw/
+*.cache/
+.Xil/
+*.runs/
+*.ip_user_files/
+vivado*.str

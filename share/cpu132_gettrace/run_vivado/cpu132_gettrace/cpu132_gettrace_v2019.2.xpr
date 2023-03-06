@@ -3,7 +3,7 @@
 <!--                                                         -->
 <!-- Copyright 1986-2019 Xilinx, Inc. All Rights Reserved.   -->
 
-<Project Version="7" Minor="44" Path="D:/ChooaaDoc/Study/SimpleMIPS/share/cpu132_gettrace/run_vivado/cpu132_gettrace/cpu132_gettrace.xpr">
+<Project Version="7" Minor="44">
   <DefaultLaunch Dir="$PRUNDIR"/>
   <Configuration>
     <Option Name="Id" Val="8be32c0e75274db89ff01e49e80abbee"/>
@@ -83,7 +83,7 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/../../../soft/func/obj/inst_ram.coe">
+      <File Path="$PPRDIR/../../../../test/official/func/obj/inst_ram.coe">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="simulation"/>
