@@ -1,0 +1,6 @@
+[submodule "deps/reference/genshin-cpu"]
+	path = deps/reference/genshin-cpu
+	url = https://gitee.com/seddon2001/genshin-cpu
+[submodule "deps/reference/nontrivial-mips"]
+	path = deps/reference/nontrivial-mips
+	url = git@github.com:trivialmips/nontrivial-mips.git
