@@ -1,32 +1,32 @@
 # Pipeline
 
-![pipeline](.\Picture\pipeline.png)
+![pipeline](figure/pipeline.png)
 
 ## IF stage
 
-![IF_stage](.\Picture\IF_stage.png)
+![IF_stage](figure/IF_stage.png)
 
 ### to ID
 
 ```verilog
 typedef struct packed {
-	//pipeline
+	// pipeline
 	logic 		 valid;
-	//IF to ID
+	// IF to ID
     uint32_t 	 inst;
     virt_t 		 pc;
-    //ex
+    // exception
 	exception_t  exception;
 } fs_to_ds_bus_t;
 ```
 
 ### pre-IF
 
-从inst_sram预取下一条指令(next_pc)
+从 inst_sram 预取下一条指令 (next_pc)
 
 ### br_bus
 
-`stall`表示发生load-branch冲突，需要阻塞一个周期；`bd`表示ID阶段为分支或跳转指令，即IF阶段为分支延迟槽指令；`taken`表示跳转是否发生；`target`表示跳转地址
+`stall` 表示发生 load-branch 冲突，需要阻塞一个周期；`bd` 表示 ID 阶段为分支或跳转指令，即 IF 阶段为分支延迟槽指令；`taken` 表示跳转是否发生；`target` 表示跳转地址
 
 ```verilog
 typedef struct packed {
@@ -39,11 +39,11 @@ typedef struct packed {
 
 ### CP0
 
-`epc`表示在异常处理完成后需要跳转的地址
+`epc` 表示在异常处理完成后需要跳转的地址
 
 ### 异常
 
-当`fs_pc[1:0] != 0`发生地址错例外-取指，错误地址`fs_pc`放入`exception.badvaddr`
+当 `fs_pc[1:0] != 0` 发生地址错误异常-取指，错误地址 `fs_pc` 放入 `exception.badvaddr`
 
 ```verilog
 assign exception.bd = br_bus.bd;
@@ -54,7 +54,7 @@ assign exception.badvaddr = fs_pc;
 
 ## ID stage
 
-![ID_stage](.\Picture\ID_stage.png)
+![ID_stage](figure/ID_stage.png)
 
 ### to EXE
 
@@ -83,7 +83,7 @@ typedef struct packed {
 	uint32_t 	 rs_value;
 	uint32_t 	 rt_value;
 	virt_t 	 	 pc;
-    //ex
+    // exception
 	exception_t  exception;
 } ds_to_es_bus_t;
 ```
@@ -128,7 +128,7 @@ typedef struct packed {
 
 ### branch_control
 
-分支控制，输出br_bus，决定IF是否跳转，以及跳转地址
+分支控制，输出 br_bus，决定 IF 是否跳转，以及跳转地址
 
 ```verilog
 module branch_control (
@@ -148,9 +148,9 @@ module branch_control (
 
 ### register_forward
 
-根据EXE、MEM、WB前递的结果以及通用寄存器组regfile的结果计算出正确的rs_value和rt_value
+根据 EXE、MEM、WB 前递的结果以及通用寄存器组 regfile 的结果计算出正确的 rs_value 和 rt_value
 
-当EXE为load类指令或EXE、MEM、WB为mfc0指令时，阻塞信号ds_stall有效
+当 EXE 为 load 类指令或 EXE、MEM、WB 为 mfc0 指令时，阻塞信号 ds_stall 有效
 
 ```verilog
 module register_forward(
@@ -174,7 +174,7 @@ module register_forward(
     input [ 3:0]     ws_rf_we,
     input reg_addr_t ws_dest,
     input uint32_t   ws_result,
-    //result
+    // result
     output uint32_t  rs_value,
     output uint32_t  rt_value,
     // stall
@@ -184,25 +184,25 @@ module register_forward(
 
 ### 异常
 
-1.当来自CP0的`c0_hw`和`c0_sw`有效时，触发硬件中断；
+1. 当来自 CP0 的 `c0_hw` 和 `c0_sw` 有效时，触发硬件中断
 
-2.来自IF的指令有异常时，继续传递；
+2. 来自 IF 的指令有异常时，继续传递
 
-3.inst_decoder模块发现指令无效时触发保留指令例外；
+3. inst_decoder 模块发现指令无效时触发保留指令异常
 
-4.inst_decoder模块发现syscall和break指令触发系统调用例外和陷阱意外。
+4. inst_decoder 模块发现 syscall 和 break 指令触发系统调用异常和陷阱意外
 
 ## EXE stage
 
-![EXE_stage](.\Picture\EXE_stage.png)
+![EXE_stage](figure/EXE_stage.png)
 
 ### to MEM
 
 ```verilog
 typedef struct packed {
-	//pipeline
+	// pipeline
 	logic 		 valid;
-	//EXE to MEM
+	// EXE to MEM
 	logic [ 6:0] load_op;
     logic [ 2:0] c0_op;
 	logic [ 7:0] c0_addr;
@@ -211,7 +211,7 @@ typedef struct packed {
 	reg_addr_t 	 dest;
 	uint32_t 	 result;
     virt_t 		 pc;
-    //ex
+    // exception
 	exception_t  exception;
 } es_to_ms_bus_t;
 ```
@@ -221,27 +221,27 @@ typedef struct packed {
 算术运算模块
 
 ```verilog
-wire op_add;   //加法操作
-wire op_sub;   //减法操作
-wire op_slt;   //有符号比较，小于置位
-wire op_sltu;  //无符号比较，小于置位
-wire op_and;   //按位与
-wire op_nor;   //按位或非
-wire op_or;    //按位或
-wire op_xor;   //按位异或
-wire op_sll;   //逻辑左移
-wire op_srl;   //逻辑右移
-wire op_sra;   //算术右移
-wire op_lui;   //立即数置于高半部分
+wire op_add;   //> 加法操作
+wire op_sub;   //> 减法操作
+wire op_slt;   //> 有符号比较，小于置位
+wire op_sltu;  //> 无符号比较，小于置位
+wire op_and;   //> 按位与
+wire op_nor;   //> 按位或非
+wire op_or;    //> 按位或
+wire op_xor;   //> 按位异或
+wire op_sll;   //> 逻辑左移
+wire op_srl;   //> 逻辑右移
+wire op_sra;   //> 算术右移
+wire op_lui;   //> 立即数置于高半部分
 ```
 
 ### reg_hi_lo
 
-乘除运算指令和HI/LO寄存器交互
+乘除运算指令和 HI/LO 寄存器交互
 
-除法采用多周期实现，EXE级阻塞直到`hi_lo_ready`有效
+除法采用多周期实现，EXE 级阻塞直到 `hi_lo_ready` 有效
 
-当EXE、MEM和WB出现异常或为eret指令，禁止写操作(wr_disable)
+当 EXE、MEM、WB 出现异常或为 eret 指令，禁止写操作 (wr_disable)
 
 ```verilog
 module reg_hi_lo (
@@ -261,7 +261,7 @@ module reg_hi_lo (
 
 ### mem_operation
 
-发出内存读写请求(store & load)
+发出内存读写请求 (store & load)
 
 ```verilog
 module mem_operation (
@@ -283,37 +283,37 @@ module mem_operation (
 
 ### 异常
 
-1.来自ID的指令有异常时，继续传递；
+1. 来自 ID 的指令有异常时，继续传递
 
-2.alu模块计算结果溢出时，触发整型溢出例外；
+2. alu 模块计算结果溢出时，触发整型溢出异常
 
-3.mem_operation模块内存读写地址错误时，触发地址错例外-数据访问
+3. mem_operation 模块内存读写地址错误时，触发地址错误异常-数据访问
 
 ## MEM stage
 
-![MEM_stage](.\Picture\MEM_stage.png)
+![MEM_stage](figure/MEM_stage.png)
 
 ### to WB
 
 ```verilog
 typedef struct packed {
-	//pipeline
+	// pipeline
 	logic 		 valid;
-	//MEM to WB
+	// MEM to WB
     logic [ 2:0] c0_op;
 	logic [ 7:0] c0_addr;
 	logic [ 3:0] rf_we;
 	reg_addr_t 	 dest;
 	uint32_t 	 result;
     virt_t 		 pc;
-    //ex
+    // ex
 	exception_t  exception;
 } ms_to_ws_bus_t;
 ```
 
 ### mem_load
 
-根据load指令的不同，计算出正确的访存结果`mem_result`和通用寄存器写信号`rf_we`
+根据 load 指令的不同，计算出正确的访存结果 `mem_result` 和通用寄存器写信号 `rf_we`
 
 ```verilog
 module mem_load (
@@ -333,11 +333,11 @@ module mem_load (
 
 ## WB_stage
 
-![WB_stage](.\Picture\WB_stage.png)
+![WB_stage](figure/WB_stage.png)
 
 ### exception_control
 
-产生异常和清除异常以及与CP0交互
+产生异常和清除异常以及与 CP0 交互
 
 ```verilog
 module  exception_control (
@@ -352,21 +352,21 @@ module  exception_control (
     output uint32_t    c0_wdata,
     input  uint32_t    c0_rdata,
     // exception
-    output eret_flush, //异常清除
-    output ex_en, //产生异常
-    // to cp0 
-    // 异常传递到cp0
-    input  virt_t           ws_pc,
-    input  exception_t      ws_exception,
-    output                  c0_eret_flush,
-    output exception_t      c0_exception,
-    output virt_t           c0_pc
+    output eret_flush, //< 异常清除
+    output ex_en,      //< 产生异常
+    // to cp0
+    // 异常传递到 cp0
+    input  virt_t       ws_pc,
+    input  exception_t  ws_exception,
+    output              c0_eret_flush,
+    output exception_t  c0_exception,
+    output virt_t       c0_pc
 );
 ```
 
 ### ws_to_rf_bus
 
-数据写回通用寄存器组regfile
+数据写回通用寄存器组 regfile
 
 ```verilog
 typedef struct packed {
@@ -378,7 +378,7 @@ typedef struct packed {
 
 ### ws_to_c0_bus
 
-异常传递到CP0
+异常传递到 CP0
 
 ```verilog
 typedef struct packed {
@@ -397,7 +397,7 @@ typedef struct packed {
 
 ### pipeline_flush
 
- 产生和清除异常时清空流水线
+产生和清除异常时清空流水线
 
 ```verilog
 typedef struct packed {
@@ -408,40 +408,46 @@ typedef struct packed {
 
 ### 异常
 
-WB级产生异常并读写CP0数据。因此op_mfc0不能前递数据，冲突时必须阻塞直到op_mfc0到WB级。
+WB 级产生异常并读写 CP0 数据。因此 op_mfc0 不能前递数据，冲突时必须阻塞直到 op_mfc0 到 WB 级。
 
 ## CP0
 
-![CP0](.\Picture\CP0.png)
+![CP0](figure/CP0.png)
 
 ### BadVAdddr
 
-只读，记录最后一次导致发生地址错例外的虚地址
+只读，记录最后一次导致发生地址错误异常的虚地址
 
 ### Count & Compare
 
-Count以流水线时钟一半频率自增，当`Count == Compare`时触发计时器中断，`Cause.TI`置1。写Compare寄存器时，自动将`Cause.TI`置0，清除中断。
+Count 以流水线时钟一半频率自增，当 `Count == Compare` 时触发计时器中断，`Cause.TI` 置 1。写 Compare 寄存器时，自动将`Cause.TI`置 0，清除中断。
 
 ### Status
 
-`Bev`恒为1
+`Bev` 恒为 1
 
-`IM`中断屏蔽位。1：使能；0：屏蔽
+`IM` 中断屏蔽位
+- 1：使能
+- 0：屏蔽
 
-`EXL`例外状态。1：例外级，处理器处于核心态，软硬件中断屏蔽，EPC，Cause.BD不更新；0：正常级
+`EXL` 异常状态
+- 1：异常级，处理器处于核心态，软硬件中断屏蔽，EPC，Cause.BD 不更新
+- 0：正常级
 
-`IE`中断使能。0：屏蔽中断；1：使能
+`IE` 中断使能
+- 0：屏蔽中断
+- 1：使能
 
 ### Cause
 
-`BD`例外指令是否处于分支延迟槽（分支指令的下一个指令）。
+`BD` 异常指令是否处于分支延迟槽（分支指令的下一个指令）
 
-`TI`计时器中断
+`TI` 计时器中断
 
-`IP`7\~2对应硬件中断5\~0，1\~0对应软件中断1\~0
+`IP` 7~2 分别对应硬件中断 5~0；1~0 分别对应软件中断 1~0
 
-`ExcCode`例外编码
+`ExcCode` 异常编码
 
 ### EPC
 
-例外处理完成后继续执行的指令的PC
+异常处理完成后继续执行的指令的 PC
