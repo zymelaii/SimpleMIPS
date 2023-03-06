@@ -1,0 +1,8 @@
+/.*/
+
+/build*/
+/BUILD_*/
+
+*.o
+*.obj
+*.exe
