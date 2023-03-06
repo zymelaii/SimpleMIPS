@@ -1,0 +1,34 @@
+stages:
+	- stage_1
+	- stage_2
+	- stage_3
+	- cleanup
+  
+  stage_1-job:
+	tags:
+	  - vivado-2022
+	stage: stage_1
+	script:
+	  - echo "under job stage_1"
+  
+  stage_2-job:
+	tags:
+	  - vivado-2022
+	stage: stage_2
+	script:
+	  - echo "under job stage_2"
+  
+  stage_3-job:
+	tags:
+	  - vivado-2022
+	stage: stage_3
+	script:
+	  - echo "under job stage_3"
+  
+  cleanup-job:
+	tags:
+	  - vivado-2022
+	stage: cleanup
+	script:
+	  - mkdir -p ~/foobar
+  
