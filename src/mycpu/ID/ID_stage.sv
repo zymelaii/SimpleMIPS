@@ -6,17 +6,22 @@ module id_stage (
     // pipeline
     input  es_allowin,
     output ds_allowin,
+    // from pre_IF
+    input        pfs_bd,
+    input virt_t pfs_pc,
     // from IF
     input fs_to_ds_bus_t fs_to_ds_bus,
     // from WB
     input ws_to_rf_bus_t ws_to_rf_bus,
     // forward bus
-    input es_forward_bus_t es_forward_bus,
-    input ms_forward_bus_t ms_forward_bus,
-    input ws_forward_bus_t ws_forward_bus,
+    input es_forward_bus_t  es_forward_bus,
+    input pms_forward_bus_t pms_forward_bus,
+    input ms_forward_bus_t  ms_forward_bus,
+    input ws_forward_bus_t  ws_forward_bus,
     // to EXE
     output ds_to_es_bus_t ds_to_es_bus,
     // branch bus
+    output logic    br_bus_en,
     output br_bus_t br_bus,
     // cp0 and exception
     input logic [5:0] c0_hw,
@@ -75,8 +80,14 @@ register_forward u_register_forward(
     .es_load    (es_forward_bus.op_load),
     .es_dest    (es_forward_bus.dest   ),
     .es_result  (es_forward_bus.result ),
+    // pms forward
+    .pms_mfc0   (pms_forward_bus.op_mfc0),
+    .pms_load   (pms_forward_bus.op_load),
+    .pms_dest   (pms_forward_bus.dest   ),
+    .pms_result (pms_forward_bus.result ),
     // ms forward
     .ms_mfc0    (ms_forward_bus.op_mfc0),
+    .ms_load    (ms_forward_bus.op_load),
     .ms_rf_we   (ms_forward_bus.rf_we  ),
     .ms_dest    (ms_forward_bus.dest   ),
     .ms_result  (ms_forward_bus.result ),
@@ -93,8 +104,9 @@ register_forward u_register_forward(
 );
 
 // branch control
-assign br_bus.bd = (|inst_d.br_op) & ds_valid;
-assign fs_pc     = fs_to_ds_bus.pc;
+assign br_bus_en    = br_bus.br_op & ds_ready_go & es_allowin;
+assign br_bus.br_op = (|inst_d.br_op) & ds_valid;
+assign fs_pc        = pfs_bd ? pfs_pc : fs_to_ds_bus.pc;
 
 branch_control u_branch_control (
     .ds_valid   (ds_valid     ),

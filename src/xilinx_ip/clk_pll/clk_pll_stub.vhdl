@@ -1,10 +1,10 @@
 -- Copyright 1986-2019 Xilinx, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2019.2 (win64) Build 2708876 Wed Nov  6 21:40:23 MST 2019
--- Date        : Sun Mar  5 12:10:00 2023
--- Host        : DESKTOP-DA5086R running 64-bit major release  (build 9200)
+-- Date        : Fri Mar 10 11:49:57 2023
+-- Host        : DESKTOP-D3A1UPG running 64-bit major release  (build 9200)
 -- Command     : write_vhdl -force -mode synth_stub
---               D:/ChooaaDoc/Study/cpu_lab/func_test_v0.01/soc_sram_func/rtl/xilinx_ip/clk_pll/clk_pll_stub.vhdl
+--               F:/VMSharedDoc/lab11/CPU_CDE_AXI/mycpu_axi_verify/rtl/xilinx_ip/clk_pll/clk_pll_stub.vhdl
 -- Design      : clk_pll
 -- Purpose     : Stub declaration of top-level module interface
 -- Device      : xc7a200tfbg676-2

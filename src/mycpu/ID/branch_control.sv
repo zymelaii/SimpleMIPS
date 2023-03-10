@@ -47,7 +47,7 @@ assign rs_ge_z  = ~rs_lt_z;
 assign rs_gt_z  = ~rs_lt_z & ~rs_eq_z;
 assign rs_le_z  = rs_lt_z | rs_eq_z;
 
-assign br_stall = br_taken && ds_stall;
+assign br_stall = (|br_op) & ds_stall;
 assign br_taken = (    inst_beq                  &&  rs_eq_rt
                    ||  inst_bne                  && !rs_eq_rt
                    || (inst_bgez | inst_bgezal)  &&  rs_ge_z

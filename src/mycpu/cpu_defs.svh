@@ -31,7 +31,7 @@ cpu_defs:定义在cpu核中使用的常量和数据结构
 
 typedef logic [4:0] reg_addr_t;
 
-//exception
+// exception
 typedef struct packed {
     logic        bd;
     logic        ex;
@@ -44,21 +44,31 @@ typedef struct packed {
 	logic eret;
 } pipeline_flush_t;
 
-//IF stage
+// pre_IF stage
 typedef struct packed {
-	//pipeline
+	// pipeline
+	logic 	 valid;
+	// pre_IF to IF
+	logic    stall;
+	logic 	 br_op;
+	virt_t	 pc;
+} pfs_to_fs_bus_t;
+
+// IF stage
+typedef struct packed {
+	// pipeline
 	logic 		 valid;
-	//IF to ID
+	// IF to ID
     uint32_t 	 inst;
     virt_t 		 pc;
-    //ex
+    // ex
 	exception_t  exception;
 } fs_to_ds_bus_t;
 
-//ID stage
+// ID stage
 typedef struct packed {
 	logic  stall;
-	logic  bd;
+	logic  br_op;
 	logic  taken;
 	virt_t target;
 } br_bus_t;
@@ -119,12 +129,12 @@ typedef struct packed {
 	uint32_t 	 rs_value;
 	uint32_t 	 rt_value;
 	virt_t 	 	 pc;
-    //ex
+    // ex
 	exception_t  exception;
 } ds_to_es_bus_t;
 
 
-//EXE stage
+// EXE stage
 typedef struct packed {
 	logic 		op_mfc0;
 	logic 		op_load;
@@ -133,44 +143,74 @@ typedef struct packed {
 } es_forward_bus_t;
 
 typedef struct packed {
-	//pipeline
+	// pipeline
 	logic 		 valid;
-	//EXE to MEM
+	// EXE to MEM
 	logic [ 6:0] load_op;
+	logic [ 4:0] store_op;
     logic [ 2:0] c0_op;
 	logic [ 7:0] c0_addr;
 	logic 		 res_from_mem;
+	logic 		 res_to_mem;
+	logic 		 rf_we;
+	virt_t		 mem_addr;
+	reg_addr_t 	 dest;
+	uint32_t 	 result;
+    virt_t 		 pc;
+    // ex
+	exception_t  exception;
+} es_to_pms_bus_t;
+
+// pre_MEM stage
+typedef struct packed {
+	logic 		op_mfc0;
+	logic 		op_load;
+	reg_addr_t 	dest;
+	uint32_t 	result;
+} pms_forward_bus_t;
+
+typedef struct packed {
+	// pipeline
+	logic 		 valid;
+	// pre_MEM to MEM
+	logic [ 6:0] load_op;
+    logic [ 2:0] c0_op;
+	logic [ 7:0] c0_addr;
+	logic 		 req_ok;
+	logic 		 res_from_mem;
+	logic 		 res_to_mem;
 	logic 		 rf_we;
 	reg_addr_t 	 dest;
 	uint32_t 	 result;
     virt_t 		 pc;
-    //ex
+    // ex
 	exception_t  exception;
-} es_to_ms_bus_t;
+} pms_to_ms_bus_t;
 
-//MEM stage
+// MEM stage
 typedef struct packed {
 	logic 		 op_mfc0;
+	logic 		 op_load;
 	logic [ 3:0] rf_we;
 	reg_addr_t 	 dest;
 	uint32_t 	 result;
 } ms_forward_bus_t;
 
 typedef struct packed {
-	//pipeline
+	// pipeline
 	logic 		 valid;
-	//MEM to WB
+	// MEM to WB
     logic [ 2:0] c0_op;
 	logic [ 7:0] c0_addr;
 	logic [ 3:0] rf_we;
 	reg_addr_t 	 dest;
 	uint32_t 	 result;
     virt_t 		 pc;
-    //ex
+    // ex
 	exception_t  exception;
 } ms_to_ws_bus_t;
 
-//WB stage
+// WB stage
 typedef struct packed {
 	logic 		 op_mfc0;
 	logic [ 3:0] rf_we;
