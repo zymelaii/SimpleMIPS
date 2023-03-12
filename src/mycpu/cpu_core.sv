@@ -90,7 +90,25 @@ pipeline_flush_t pipeline_flush;
 logic            pms_wr_disable;
 logic            ms_wr_disable;
 logic            wr_disable;
-assign wr_disable = ms_wr_disable | pipeline_flush.eret | pipeline_flush.ex;
+assign wr_disable = ms_wr_disable | pipeline_flush.eret | pipeline_flush.ex | pipeline_flush.tlb_op;
+
+// tlb/mmu
+virt_t           inst_vaddr;
+virt_t           data_vaddr;
+mmu_result_t     inst_result;
+mmu_result_t     data_result;
+logic            load_op;
+logic            store_op;
+exception_t      inst_tlb_ex;
+exception_t      data_tlb_ex;
+virt_t           tlb_pc;
+tlb_index_t      tlbrw_index;
+logic            tlbrw_we;
+tlb_entry_t      tlbrw_wdata;
+tlb_entry_t      tlbrw_rdata;
+uint32_t         tlbp_entry_hi;
+uint32_t         tlbp_index;
+logic[7:0]       tlb_asid;
 
 // cpu axi interface
 
@@ -201,6 +219,11 @@ pre_if_stage u_pre_if_stage (
     // cp0 and exception
     .pipeline_flush (pipeline_flush ),
     .c0_epc         (c0_epc         ),
+    // tlb/mmu
+    .tlb_pc         (tlb_pc         ),
+    .inst_vaddr     (inst_vaddr     ),
+    .inst_result    (inst_result    ),
+    .inst_tlb_ex    (inst_tlb_ex    ),
     // inst_sram interface
     .inst_req       (inst_sram_req    ),
     .inst_wr        (inst_sram_wr     ),
@@ -298,6 +321,12 @@ pre_mem_stage u_pre_mem_stage (
     .wr_disable     (wr_disable     ),
     .pms_wr_disable (pms_wr_disable ),
     .pipeline_flush (pipeline_flush ),
+    // MMU
+    .load_op        (load_op        ),
+    .store_op       (store_op       ),
+    .data_vaddr     (data_vaddr     ),
+    .data_result    (data_result    ),
+    .data_tlb_ex    (data_tlb_ex    ),
     // data_sram interface
     .data_req       (data_sram_req    ),
     .data_wr        (data_sram_wr     ),
@@ -347,6 +376,8 @@ wb_stage wb_stage(
     .wb_c0_bus      (WB_C0_Bus.WB   ),
     // exception
     .pipeline_flush (pipeline_flush ),
+    // tlb
+    .tlb_pc         (tlb_pc         ),
     //trace debug interface
     .debug_wb_pc      (debug_wb_pc      ),
     .debug_wb_rf_wen  (debug_wb_rf_wen  ),
@@ -366,8 +397,43 @@ reg_cp0 u_reg_cp0(
     .ext_int_in     (ext_int        ),
     .c0_hw          (c0_hw          ),
     .c0_sw          (c0_sw          ),
+    // TLB
+    .tlb_asid       (tlb_asid       ),
+    .tlbrw_index    (tlbrw_index    ),
+    .tlbrw_we       (tlbrw_we       ),
+    .tlbrw_wdata    (tlbrw_wdata    ),
+    .tlbrw_rdata    (tlbrw_rdata    ),
+    .tlbp_entry_hi  (tlbp_entry_hi  ),
+    .tlbp_index     (tlbp_index     ),
     // EPC
     .epc            (c0_epc         )
+);
+
+// MMU
+mmu u_mmu (
+    .clk            (clk            ),
+    .reset          (reset          ),
+    .asid           (tlb_asid       ),
+    .kseg0_uncached (1'b1           ),
+    .is_user_mode   (1'b1           ),
+    .inst_vaddr     (inst_vaddr     ),
+    .data_vaddr     (data_vaddr     ),
+
+    .inst_result    (inst_result    ),
+    .data_result    (data_result    ),
+    // for TLBR/TLBWI/TLBWR
+    .tlbrw_index    (tlbrw_index    ),
+    .tlbrw_we       (tlbrw_we       ),
+    .tlbrw_wdata    (tlbrw_wdata    ),
+    .tlbrw_rdata    (tlbrw_rdata    ),
+    // for TLBP
+    .tlbp_entry_hi  (tlbp_entry_hi  ),
+    .tlbp_index     (tlbp_index     ),
+
+    .load_op        (load_op        ),
+    .store_op       (store_op       ),
+    .inst_tlb_ex    (inst_tlb_ex    ),
+    .data_tlb_ex    (data_tlb_ex    )
 );
 
 endmodule

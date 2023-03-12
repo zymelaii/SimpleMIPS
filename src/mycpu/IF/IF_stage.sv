@@ -32,12 +32,12 @@ uint32_t fs_inst;
 pfs_to_fs_bus_t pfs_to_fs_bus_r;
 
 // exception
-logic data_cancel;
 exception_t exception;
+logic data_cancel;
 
 // IF stage
 assign pfs_fs_lock = pfs_to_fs_bus.br_op && !pfs_to_fs_bus.valid && fs_valid;
-assign fs_ready_go = (inst_data_ok || fs_inst_valid) && !data_cancel && !pfs_to_fs_bus.stall;
+assign fs_ready_go = (inst_data_ok || fs_inst_valid) && !data_cancel && !pfs_to_fs_bus.stall || pfs_to_fs_bus_r.exception.ex;
 assign fs_allowin = !fs_valid || fs_ready_go && ds_allowin;
 assign fs_to_ds_valid = fs_valid && fs_ready_go && !pfs_fs_lock;
 
@@ -45,7 +45,7 @@ always_ff @( posedge clk ) begin
     if (reset) begin
         fs_valid <= 1'b0;
     end
-    else if(pipeline_flush.ex | pipeline_flush.eret) begin
+    else if(pipeline_flush.ex | pipeline_flush.eret || pipeline_flush.tlb_op) begin
         fs_valid <= 1'b0;
     end
     else if (fs_allowin && !pfs_fs_lock) begin
@@ -55,7 +55,7 @@ always_ff @( posedge clk ) begin
     if(pfs_to_fs_bus.valid && fs_allowin && !pfs_fs_lock)
         pfs_to_fs_bus_r <= pfs_to_fs_bus;
     
-    if(reset || pipeline_flush.ex || pipeline_flush.eret)
+    if(reset || pipeline_flush.ex || pipeline_flush.eret || pipeline_flush.tlb_op)
         fs_inst_valid <= 1'b0;
     else if(inst_data_ok && (!ds_allowin || pfs_to_fs_bus.stall || pfs_fs_lock)) begin
         fs_inst_valid <= 1'b1;
@@ -69,19 +69,19 @@ end
 assign fs_to_pfs_valid = fs_valid;
 
 // cp0 and ex
-assign exception.bd = pfs_to_fs_bus.br_op;
-assign exception.ex = fs_valid && (pfs_to_fs_bus_r.pc[1:0] != 2'h0);
-assign exception.exccode = `EXCCODE_ADEL;
-assign exception.badvaddr = pfs_to_fs_bus_r.pc;
 always_ff @(posedge clk) begin
     if(reset)
         data_cancel <= 1'b0;
-    else if((pipeline_flush.eret || pipeline_flush.ex) && (pfs_to_fs_bus.valid || !fs_ready_go && fs_valid))
+    else if((pipeline_flush.eret || pipeline_flush.ex || pipeline_flush.tlb_op) && (pfs_to_fs_bus.req || !fs_ready_go && fs_valid))
         data_cancel <= 1'b1;
     else if(inst_data_ok)
         data_cancel <= 1'b0;
 end
-
+assign exception = { pfs_to_fs_bus_r.exception.tlb_refill,
+                     pfs_to_fs_bus.br_op,
+                     pfs_to_fs_bus_r.exception.ex,
+                     pfs_to_fs_bus_r.exception.exccode,
+                     pfs_to_fs_bus_r.exception.badvaddr};
 // to ID
 assign fs_to_ds_bus = { fs_to_ds_valid,
                         fs_inst_valid ? fs_inst : inst_rdata,

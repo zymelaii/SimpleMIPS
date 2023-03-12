@@ -36,6 +36,7 @@ uint32_t hi_lo_result;
 
 // forward
 logic op_mfc0;
+logic op_tlb;
 
 // cp0 and exception
 exception_t exception;
@@ -103,8 +104,10 @@ reg_hi_lo u_reg_hi_lo(
 
 // forward
 assign op_mfc0 = ds_to_es_bus_r.c0_op[2] & es_valid;
+assign op_tlb  = (ds_to_es_bus_r.tlb_op[0] | ds_to_es_bus_r.tlb_op[1] | ds_to_es_bus_r.tlb_op[2]) & es_valid;
 assign es_forward_bus = { op_mfc0,
                           ds_to_es_bus_r.res_from_mem & es_valid,
+                          op_tlb,
                           ds_to_es_bus_r.dest & {5{es_valid}},
                           final_result
                           };
@@ -115,6 +118,8 @@ assign {exception.ex, exception.exccode} = ds_to_es_bus_r.exception.ex ? {ds_to_
                                            alu_ex & es_valid           ? {1'b1, `EXCCODE_OV}                                             :
                                                                          6'h0;
 assign exception.badvaddr = ds_to_es_bus_r.exception.badvaddr;
+assign exception.tlb_refill =  exception.exccode == `EXCCODE_TLBL ?
+                               ds_to_es_bus_r.exception.tlb_refill : 1'b0;
 
 // to MEM
 assign op_mtc0        = ds_to_es_bus_r.c0_op[1];
@@ -135,7 +140,8 @@ assign es_to_pms_bus  = { es_to_pms_valid,
                           ds_to_es_bus_r.dest,
                           final_result,
                           ds_to_es_bus_r.pc,
-                          exception
+                          exception,
+                          ds_to_es_bus_r.tlb_op
                           };
 
 endmodule

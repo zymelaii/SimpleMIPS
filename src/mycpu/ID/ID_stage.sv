@@ -77,22 +77,26 @@ register_forward u_register_forward(
     .rf_rdata2  (rf_rdata2),
     // es forward
     .es_mfc0    (es_forward_bus.op_mfc0),
+    .es_tlb     (es_forward_bus.op_tlb ),
     .es_load    (es_forward_bus.op_load),
     .es_dest    (es_forward_bus.dest   ),
     .es_result  (es_forward_bus.result ),
     // pms forward
     .pms_mfc0   (pms_forward_bus.op_mfc0),
+    .pms_tlb    (pms_forward_bus.op_tlb ),
     .pms_load   (pms_forward_bus.op_load),
     .pms_dest   (pms_forward_bus.dest   ),
     .pms_result (pms_forward_bus.result ),
     // ms forward
     .ms_mfc0    (ms_forward_bus.op_mfc0),
+    .ms_tlb     (ms_forward_bus.op_tlb ),
     .ms_load    (ms_forward_bus.op_load),
     .ms_rf_we   (ms_forward_bus.rf_we  ),
     .ms_dest    (ms_forward_bus.dest   ),
     .ms_result  (ms_forward_bus.result ),
     // ws forward
     .ws_mfc0    (ws_forward_bus.op_mfc0),
+    .ws_tlb     (ws_forward_bus.op_tlb ),
     .ws_rf_we   (ws_forward_bus.rf_we  ),
     .ws_dest    (ws_forward_bus.dest   ),
     .ws_result  (ws_forward_bus.result ),
@@ -156,7 +160,8 @@ assign {exception.ex, exception.exccode} = {6{ds_valid}} & ((|c0_hw) | (|c0_sw) 
                                                             inst_d.op_break             ? {1'b1, `EXCCODE_BP }      :
                                                                                            6'h0              );
 assign exception.badvaddr = fs_to_ds_bus_r.exception.badvaddr;
-
+assign exception.tlb_refill =  exception.exccode == `EXCCODE_TLBL ?
+                               fs_to_ds_bus_r.exception.tlb_refill : 1'b0;
 // to EXE
 assign ds_to_es_bus = { ds_to_es_valid,
                         inst_d.alu_op,
@@ -179,7 +184,8 @@ assign ds_to_es_bus = { ds_to_es_valid,
                         rs_value,
                         rt_value,
                         fs_to_ds_bus_r.pc,
-                        exception
+                        exception,
+                        inst_d.tlb_op
                         };
 
 endmodule

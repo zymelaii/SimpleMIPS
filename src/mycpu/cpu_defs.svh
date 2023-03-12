@@ -5,10 +5,24 @@
 /*
 cpu_defs:定义在cpu核中使用的常量和数据结构
 */
+//MMU
+`define CPU_MMU_ENABLED 0
+
+// TLB 
+`define TLB_ENTRIES_NUM 16
+`define ISSUE_NUM       1
+
+`define TLBOP_TLBP   2'd0
+`define TLBOP_TLBR   2'd1
+`define TLBOP_TLBWI  2'd2
 
 // coprocesser register
+`define CR_INDEX     0
+`define CR_ENTRYLO0  2
+`define CR_ENTRYLO1  3
 `define CR_BADVADDR  8
 `define CR_COUNT     9
+`define CR_ENTRYHI  10
 `define CR_COMPARE  11
 `define CR_STATUS   12
 `define CR_CAUSE    13
@@ -33,6 +47,9 @@ typedef logic [4:0] reg_addr_t;
 
 // exception
 typedef struct packed {
+	//TLB
+	logic        tlb_refill;
+
     logic        bd;
     logic        ex;
     logic [ 4:0] exccode;
@@ -42,6 +59,8 @@ typedef struct packed {
 typedef struct packed {
 	logic ex;
 	logic eret;
+	logic tlb_op;
+	logic tlb_refill;
 } pipeline_flush_t;
 
 // pre_IF stage
@@ -50,8 +69,11 @@ typedef struct packed {
 	logic 	 valid;
 	// pre_IF to IF
 	logic    stall;
+	logic    req;
 	logic 	 br_op;
 	virt_t	 pc;
+	// exception
+	exception_t exception;
 } pfs_to_fs_bus_t;
 
 // IF stage
@@ -83,6 +105,7 @@ typedef struct packed {
 	logic [11:0] alu_op;
 	logic    	 alu_ov;
 	logic [11:0] br_op;
+	logic [ 2:0] tlb_op;
 	logic [ 7:0] hi_lo_op;
 	logic [ 6:0] load_op;
 	logic [ 4:0] store_op;
@@ -131,6 +154,8 @@ typedef struct packed {
 	virt_t 	 	 pc;
     // ex
 	exception_t  exception;
+	// tlb
+	logic   [2:0]tlb_op;
 } ds_to_es_bus_t;
 
 
@@ -138,6 +163,7 @@ typedef struct packed {
 typedef struct packed {
 	logic 		op_mfc0;
 	logic 		op_load;
+	logic       op_tlb;
 	reg_addr_t 	dest;
 	uint32_t 	result;
 } es_forward_bus_t;
@@ -145,7 +171,7 @@ typedef struct packed {
 typedef struct packed {
 	// pipeline
 	logic 		 valid;
-	// EXE to MEM
+	// EXE to pre_MEM
 	logic [ 6:0] load_op;
 	logic [ 4:0] store_op;
     logic [ 2:0] c0_op;
@@ -159,12 +185,15 @@ typedef struct packed {
     virt_t 		 pc;
     // ex
 	exception_t  exception;
+	// tlb
+	logic   [2:0]tlb_op;
 } es_to_pms_bus_t;
 
 // pre_MEM stage
 typedef struct packed {
 	logic 		op_mfc0;
 	logic 		op_load;
+	logic       op_tlb;
 	reg_addr_t 	dest;
 	uint32_t 	result;
 } pms_forward_bus_t;
@@ -185,12 +214,15 @@ typedef struct packed {
     virt_t 		 pc;
     // ex
 	exception_t  exception;
+	// tlb
+	logic   [2:0]tlb_op;
 } pms_to_ms_bus_t;
 
 // MEM stage
 typedef struct packed {
 	logic 		 op_mfc0;
 	logic 		 op_load;
+	logic        op_tlb;
 	logic [ 3:0] rf_we;
 	reg_addr_t 	 dest;
 	uint32_t 	 result;
@@ -208,11 +240,14 @@ typedef struct packed {
     virt_t 		 pc;
     // ex
 	exception_t  exception;
+	// tlb
+	logic   [2:0]tlb_op;
 } ms_to_ws_bus_t;
 
 // WB stage
 typedef struct packed {
 	logic 		 op_mfc0;
+	logic        op_tlb;
 	logic [ 3:0] rf_we;
 	reg_addr_t 	 dest;
 	uint32_t 	 result;
@@ -224,10 +259,13 @@ typedef struct packed {
 	uint32_t     wdata;
 } ws_to_rf_bus_t;
 
+
 typedef struct packed {
 	logic 		 eret_flush;
 	exception_t  exception;
 	virt_t 		 pc;
+	// TLB
+	logic  [2:0] tlb_op;
 } ws_to_c0_bus_t;
 
 // CP0
@@ -244,6 +282,61 @@ typedef struct packed {
 	logic [7:0] ip;
 	logic [4:0] exccode;
 } cp0_cause_t;
+
+//MMU/TLB
+typedef logic [$clog2(`TLB_ENTRIES_NUM)-1:0] tlb_index_t;
+typedef struct packed {
+	phys_t phy_addr;
+	tlb_index_t which;
+	logic miss, dirty, valid;
+	logic [2:0] cache_flag;
+} tlb_result_t;
+
+typedef struct packed {
+	logic [2:0] c0;
+	logic [2:0] c1;
+	logic [7:0] asid;
+	logic [18:0] vpn2;
+	logic [19:0] pfn0, pfn1;
+	logic d0, v0, d1, v1;
+	logic G;
+} tlb_entry_t;
+
+typedef struct packed {
+	phys_t phy_addr;
+	virt_t virt_addr;
+	logic  uncached;
+	logic  invalid, miss, dirty, illegal;
+} mmu_result_t;
+interface C0_TLB_Interface();
+	//for TLBR/TLBWI/TLWR
+	tlb_index_t  tlbrw_index;
+	logic        tlbrw_we;
+	tlb_entry_t  tlbrw_wdata;
+	tlb_entry_t  tlbrw_rdata;
+	// for TLBP
+	uint32_t     tlbp_entry_hi;
+	uint32_t     tlbp_index;
+
+	modport C0(
+		output  tlbrw_index,
+		output  tlbrw_we,
+		output  tlbrw_wdata,
+		input   tlbrw_rdata,
+		output  tlbp_entry_hi,
+		input   tlbp_index
+	);
+
+	modport TLB(
+		input  tlbrw_index,
+        input  tlbrw_we,
+        input  tlbrw_wdata,
+        output tlbrw_rdata,
+        input  tlbp_entry_hi,
+        output tlbp_index
+	);
+endinterface
+
 
 /* Interface Definition */
 
@@ -268,5 +361,6 @@ interface WB_C0_Interface();
 	);
 
 endinterface
+
 
 `endif

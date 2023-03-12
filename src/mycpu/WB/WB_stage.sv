@@ -17,6 +17,8 @@ module wb_stage (
     WB_C0_Interface         wb_c0_bus,
     // exception
     output pipeline_flush_t pipeline_flush,
+    // tlb
+    output virt_t           tlb_pc,
     // trace dubug interface
     output virt_t           debug_wb_pc,
     output logic [3:0]      debug_wb_rf_wen,
@@ -33,6 +35,7 @@ ms_to_ws_bus_t ms_to_ws_bus_r;
 
 // forward
 logic    op_mfc0;
+logic    op_tlb;
 uint32_t final_result;
 
 // cp0 and exception
@@ -65,8 +68,12 @@ assign ws_to_rf_bus.wdata = final_result;
 
 // forward bus
 assign op_mfc0 = ms_to_ws_bus_r.c0_op[2] & ws_valid;
+assign op_tlb  = (ms_to_ws_bus_r.tlb_op[`TLBOP_TLBWI]| 
+                  ms_to_ws_bus_r.tlb_op[`TLBOP_TLBP] |
+                  ms_to_ws_bus_r.tlb_op[`TLBOP_TLBR] ) & ws_valid;
 assign final_result = op_mfc0 ? wb_c0_bus.rdata : ms_to_ws_bus_r.result;
 assign ws_forward_bus = {op_mfc0,
+                         op_tlb,
                          ms_to_ws_bus_r.rf_we,
                          ms_to_ws_bus_r.dest & {5{ws_valid}},
                          final_result
@@ -95,7 +102,12 @@ exception_control u_exception_control (
     .c0_pc          (ws_to_c0_bus.pc            )
 );
 
-assign pipeline_flush = {ex_en, eret_flush};
+assign tlb_pc = ms_to_ws_bus_r.pc;
+
+// tlb
+assign ws_to_c0_bus.tlb_op = ws_valid ? ms_to_ws_bus_r.tlb_op : 3'b0;
+
+assign pipeline_flush = {ex_en, eret_flush, op_tlb, ms_to_ws_bus_r.exception.tlb_refill};
 
 // trace debug interface
 assign debug_wb_pc       = ms_to_ws_bus_r.pc;

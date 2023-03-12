@@ -16,6 +16,12 @@ module pre_mem_stage(
     input   wr_disable,
     output  pms_wr_disable,
     pipeline_flush_t    pipeline_flush,
+    // MMU
+    output logic        load_op,
+    output logic        store_op,
+    output virt_t       data_vaddr,
+    input  mmu_result_t data_result,
+    input  exception_t  data_tlb_ex,
     // data sram interface
     output logic        data_req,
     output logic        data_wr,
@@ -25,7 +31,9 @@ module pre_mem_stage(
     output uint32_t     data_wdata,
     input  logic        data_addr_ok
 );
-
+// forward
+logic   op_mfc0;
+logic   op_tlb;
 
 // pre_MEM
 logic   pms_valid;
@@ -68,7 +76,7 @@ always_ff @(posedge clk) begin
 end
 
 // mem_req
-assign data_req = req;
+assign data_req   = req;
 mem_req u_mem_req (
     .res_from_mem   (es_to_pms_bus_r.res_from_mem),
     .load_op        (es_to_pms_bus_r.load_op     ),
@@ -83,24 +91,31 @@ mem_req u_mem_req (
     .data_wr        (data_wr   ),
     .data_size      (data_size ),
     .data_wstrb     (data_wstrb),
-    .data_addr      (data_addr ),
+    .data_addr      (data_vaddr),
     .data_wdata     (data_wdata)
 );
+assign data_addr = data_result.phy_addr;
 
 // exception
 assign op_mfc0 = es_to_pms_bus_r.c0_op[2] & pms_valid;
 assign pms_wr_disable = exception.ex;
+assign load_op  = es_to_pms_bus_r.res_from_mem;
+assign store_op = es_to_pms_bus_r.res_to_mem;
 assign exception.bd = es_to_pms_bus_r.exception.bd;
-assign {exception.ex, exception.exccode} = es_to_pms_bus_r.exception.ex ? {es_to_pms_bus_r.exception.ex, es_to_pms_bus_r.exception.exccode} :
-                                           mem_ex & pms_valid           ? {1'b1, mem_exccode                                            } :
-                                                                          6'h0;
+assign {exception.ex, 
+        exception.exccode,
+        exception.tlb_refill} = {7{pms_valid}} & (
+                                                es_to_pms_bus_r.exception.ex ? {es_to_pms_bus_r.exception.ex, es_to_pms_bus_r.exception.exccode, es_to_pms_bus_r.exception.tlb_refill} :
+                                                mem_ex ? {1'b1, mem_exccode, 1'b0} :
+                                                {data_tlb_ex.ex, data_tlb_ex.exccode, data_tlb_ex.tlb_refill});
 assign exception.badvaddr = es_to_pms_bus_r.exception.ex ? es_to_pms_bus_r.exception.badvaddr :
-                            mem_ex & pms_valid           ? es_to_pms_bus_r.mem_addr           :
-                                                           32'h0;
+                            (mem_ex | data_tlb_ex.ex) & pms_valid ? es_to_pms_bus_r.mem_addr  : 32'h0;
 
 // forward bus
+assign op_tlb  = (es_to_pms_bus_r.tlb_op[0] | es_to_pms_bus_r.tlb_op[1] | es_to_pms_bus_r.tlb_op[2] ) & pms_valid; 
 assign pms_forward_bus = {op_mfc0,
                           es_to_pms_bus_r.res_from_mem & pms_valid,
+                          op_tlb,
                           es_to_pms_bus_r.dest & {5{pms_valid}},
                           es_to_pms_bus_r.result
                         };
@@ -117,7 +132,8 @@ assign pms_to_ms_bus = {pms_to_ms_valid,
                         es_to_pms_bus_r.dest,
                         es_to_pms_bus_r.result,
                         es_to_pms_bus_r.pc,
-                        exception
+                        exception,
+                        es_to_pms_bus_r.tlb_op
                         };
 
 endmodule

@@ -30,7 +30,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --------------------------------------------------------------------------------
 ------------------------------------------------------------------------------*/
-`timescale 1ns / 1ps
+
 //*************************************************************************
 //   > File Name   : soc_top.v
 //   > Description : SoC, included cpu, 2 x 3 bridge,
@@ -39,27 +39,27 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //           -------------------------
 //           |           cpu         |
 //           -------------------------
-//                       | axi
-//                       | 
-//             ---------------------
-//             |    1 x 2 bridge   |
-//             ---------------------
-//                  |            |           
-//                  |            |           
-//             -----------   -----------
-//             | axi ram |   | confreg |
-//             -----------   -----------
+//         inst|                  | data
+//             |                  | 
+//             |        ---------------------
+//             |        |    1 x 2 bridge   |
+//             |        ---------------------
+//             |             |            |           
+//             |             |            |           
+//      -------------   -----------   -----------
+//      | inst ram  |   | data ram|   | confreg |
+//      -------------   -----------   -----------
 //
 //   > Author      : LOONGSON
 //   > Date        : 2017-08-04
 //*************************************************************************
 
 //for simulation:
-//1. if define SIMU_USE_PLL = 1, will use clk_pll to generate cpu_clk/sys_clk,
+//1. if define SIMU_USE_PLL = 1, will use clk_pll to generate cpu_clk/timer_clk,
 //   and simulation will be very slow.
 //2. usually, please define SIMU_USE_PLL=0 to speed up simulation by assign
-//   cpu_clk=clk, sys_clk = clk.
-//   at this time, frequency of cpu_clk is 91MHz.
+//   cpu_clk/timer_clk = clk.
+//   at this time, cpu_clk/timer_clk frequency are both 100MHz, same as clk.
 `define SIMU_USE_PLL 0 //set 0 to speed up simulation
 
 module soc_axi_lite_top #(parameter SIMULATION=1'b0)
@@ -86,38 +86,24 @@ wire [31:0] debug_wb_rf_wdata;
 
 //clk and resetn
 wire cpu_clk;
-wire sys_clk;
-reg cpu_resetn_t, cpu_resetn;
-reg sys_resetn_t, sys_resetn;
+wire timer_clk;
+reg cpu_resetn;
 always @(posedge cpu_clk)
 begin
-    cpu_resetn_t <= resetn;
-    cpu_resetn   <= cpu_resetn_t;
+    cpu_resetn <= resetn;
 end
-always @(posedge sys_clk)
-begin
-    sys_resetn_t <= resetn;
-    sys_resetn   <= sys_resetn_t;
-end
-//simulation clk.
-reg clk_91m;
-initial
-begin 
-    clk_91m = 1'b0;
-end
-always #5.5 clk_91m = ~clk_91m;
 generate if(SIMULATION && `SIMU_USE_PLL==0)
 begin: speedup_simulation
-    assign cpu_clk = clk_91m;
-    assign sys_clk = clk;
+    assign cpu_clk   = clk;
+    assign timer_clk = clk;
 end
 else
 begin: pll
     clk_pll clk_pll
     (
-        .clk_in1 (clk    ),
+        .clk_in1 (clk),
         .cpu_clk (cpu_clk),
-        .sys_clk (sys_clk)
+        .timer_clk (timer_clk)
     );
 end
 endgenerate
@@ -125,7 +111,7 @@ endgenerate
 //cpu axi
 wire [3 :0] cpu_arid   ;
 wire [31:0] cpu_araddr ;
-wire [3 :0] cpu_arlen  ;
+wire [7 :0] cpu_arlen  ;
 wire [2 :0] cpu_arsize ;
 wire [1 :0] cpu_arburst;
 wire [1 :0] cpu_arlock ;
@@ -141,7 +127,7 @@ wire        cpu_rvalid ;
 wire        cpu_rready ;
 wire [3 :0] cpu_awid   ;
 wire [31:0] cpu_awaddr ;
-wire [3 :0] cpu_awlen  ;
+wire [7 :0] cpu_awlen  ;
 wire [2 :0] cpu_awsize ;
 wire [1 :0] cpu_awburst;
 wire [1 :0] cpu_awlock ;
@@ -165,7 +151,7 @@ wire        cpu_wrap_aclk   ;
 wire        cpu_wrap_aresetn;
 wire [3 :0] cpu_wrap_arid   ;
 wire [31:0] cpu_wrap_araddr ;
-wire [3 :0] cpu_wrap_arlen  ;
+wire [7 :0] cpu_wrap_arlen  ;
 wire [2 :0] cpu_wrap_arsize ;
 wire [1 :0] cpu_wrap_arburst;
 wire [1 :0] cpu_wrap_arlock ;
@@ -181,7 +167,7 @@ wire        cpu_wrap_rvalid ;
 wire        cpu_wrap_rready ;
 wire [3 :0] cpu_wrap_awid   ;
 wire [31:0] cpu_wrap_awaddr ;
-wire [3 :0] cpu_wrap_awlen  ;
+wire [7 :0] cpu_wrap_awlen  ;
 wire [2 :0] cpu_wrap_awsize ;
 wire [1 :0] cpu_wrap_awburst;
 wire [1 :0] cpu_wrap_awlock ;
@@ -199,43 +185,6 @@ wire [3 :0] cpu_wrap_bid    ;
 wire [1 :0] cpu_wrap_bresp  ;
 wire        cpu_wrap_bvalid ;
 wire        cpu_wrap_bready ;
-//cpu axi sync
-wire [3 :0] cpu_sync_arid   ;
-wire [31:0] cpu_sync_araddr ;
-wire [3 :0] cpu_sync_arlen  ;
-wire [2 :0] cpu_sync_arsize ;
-wire [1 :0] cpu_sync_arburst;
-wire [1 :0] cpu_sync_arlock ;
-wire [3 :0] cpu_sync_arcache;
-wire [2 :0] cpu_sync_arprot ;
-wire        cpu_sync_arvalid;
-wire        cpu_sync_arready;
-wire [3 :0] cpu_sync_rid    ;
-wire [31:0] cpu_sync_rdata  ;
-wire [1 :0] cpu_sync_rresp  ;
-wire        cpu_sync_rlast  ;
-wire        cpu_sync_rvalid ;
-wire        cpu_sync_rready ;
-wire [3 :0] cpu_sync_awid   ;
-wire [31:0] cpu_sync_awaddr ;
-wire [3 :0] cpu_sync_awlen  ;
-wire [2 :0] cpu_sync_awsize ;
-wire [1 :0] cpu_sync_awburst;
-wire [1 :0] cpu_sync_awlock ;
-wire [3 :0] cpu_sync_awcache;
-wire [2 :0] cpu_sync_awprot ;
-wire        cpu_sync_awvalid;
-wire        cpu_sync_awready;
-wire [3 :0] cpu_sync_wid    ;
-wire [31:0] cpu_sync_wdata  ;
-wire [3 :0] cpu_sync_wstrb  ;
-wire        cpu_sync_wlast  ;
-wire        cpu_sync_wvalid ;
-wire        cpu_sync_wready ;
-wire [3 :0] cpu_sync_bid    ;
-wire [1 :0] cpu_sync_bresp  ;
-wire        cpu_sync_bvalid ;
-wire        cpu_sync_bready ;
 //axi ram
 wire [3 :0] ram_arid   ;
 wire [31:0] ram_araddr ;
@@ -319,8 +268,8 @@ wire [4 :0] ram_random_mask;
 cpu_core u_cpu(
     .ext_int   (6'd0          ),   //high active
 
-    .clk       (cpu_clk       ),
-    .resetn    (cpu_resetn    ),   //low active
+    .clk      (cpu_clk       ),
+    .resetn   (cpu_resetn    ),   //low active
 
     .arid      (cpu_arid      ),
     .araddr    (cpu_araddr    ),
@@ -460,133 +409,48 @@ axi_wrap u_cpu_axi_wrap(
   .s_bready  ( cpu_wrap_bready  ) 
 );
 
-//clock sync: from CPU to AXI_Crossbar
-axi_clock_converter  u_axi_clock_sync(
-  .s_axi_aclk    (cpu_clk          ),
-  .s_axi_aresetn (cpu_resetn       ),
-  .s_axi_awid    (cpu_wrap_awid    ),
-  .s_axi_awaddr  (cpu_wrap_awaddr  ),
-  .s_axi_awlen   (cpu_wrap_awlen   ),
-  .s_axi_awsize  (cpu_wrap_awsize  ),
-  .s_axi_awburst (cpu_wrap_awburst ),
-  .s_axi_awlock  (cpu_wrap_awlock  ),
-  .s_axi_awcache (cpu_wrap_awcache ),
-  .s_axi_awprot  (cpu_wrap_awprot  ),
-  .s_axi_awqos   (4'd0             ),
-  .s_axi_awvalid (cpu_wrap_awvalid ),
-  .s_axi_awready (cpu_wrap_awready ),
-  .s_axi_wid     (cpu_wrap_wid     ),
-  .s_axi_wdata   (cpu_wrap_wdata   ),
-  .s_axi_wstrb   (cpu_wrap_wstrb   ),
-  .s_axi_wlast   (cpu_wrap_wlast   ),
-  .s_axi_wvalid  (cpu_wrap_wvalid  ),
-  .s_axi_wready  (cpu_wrap_wready  ),
-  .s_axi_bid     (cpu_wrap_bid     ),
-  .s_axi_bresp   (cpu_wrap_bresp   ),
-  .s_axi_bvalid  (cpu_wrap_bvalid  ),
-  .s_axi_bready  (cpu_wrap_bready  ),
-  .s_axi_arid    (cpu_wrap_arid    ),
-  .s_axi_araddr  (cpu_wrap_araddr  ),
-  .s_axi_arlen   (cpu_wrap_arlen   ),
-  .s_axi_arsize  (cpu_wrap_arsize  ),
-  .s_axi_arburst (cpu_wrap_arburst ),
-  .s_axi_arlock  (cpu_wrap_arlock  ),
-  .s_axi_arcache (cpu_wrap_arcache ),
-  .s_axi_arprot  (cpu_wrap_arprot  ),
-  .s_axi_arqos   (4'd0             ),
-  .s_axi_arvalid (cpu_wrap_arvalid ),
-  .s_axi_arready (cpu_wrap_arready ),
-  .s_axi_rid     (cpu_wrap_rid     ),
-  .s_axi_rdata   (cpu_wrap_rdata   ),
-  .s_axi_rresp   (cpu_wrap_rresp   ),
-  .s_axi_rlast   (cpu_wrap_rlast   ),
-  .s_axi_rvalid  (cpu_wrap_rvalid  ),
-  .s_axi_rready  (cpu_wrap_rready  ),
-  .m_axi_aclk    (sys_clk          ),
-  .m_axi_aresetn (sys_resetn       ),
-  .m_axi_awid    (cpu_sync_awid    ),
-  .m_axi_awaddr  (cpu_sync_awaddr  ),
-  .m_axi_awlen   (cpu_sync_awlen   ),
-  .m_axi_awsize  (cpu_sync_awsize  ),
-  .m_axi_awburst (cpu_sync_awburst ),
-  .m_axi_awlock  (cpu_sync_awlock  ),
-  .m_axi_awcache (cpu_sync_awcache ),
-  .m_axi_awprot  (cpu_sync_awprot  ),
-  .m_axi_awqos   (                 ),
-  .m_axi_awvalid (cpu_sync_awvalid ),
-  .m_axi_awready (cpu_sync_awready ),
-  .m_axi_wid     (cpu_sync_wid     ),
-  .m_axi_wdata   (cpu_sync_wdata   ),
-  .m_axi_wstrb   (cpu_sync_wstrb   ),
-  .m_axi_wlast   (cpu_sync_wlast   ),
-  .m_axi_wvalid  (cpu_sync_wvalid  ),
-  .m_axi_wready  (cpu_sync_wready  ),
-  .m_axi_bid     (cpu_sync_bid     ),
-  .m_axi_bresp   (cpu_sync_bresp   ),
-  .m_axi_bvalid  (cpu_sync_bvalid  ),
-  .m_axi_bready  (cpu_sync_bready  ),
-  .m_axi_arid    (cpu_sync_arid    ),
-  .m_axi_araddr  (cpu_sync_araddr  ),
-  .m_axi_arlen   (cpu_sync_arlen   ), 
-  .m_axi_arsize  (cpu_sync_arsize  ),
-  .m_axi_arburst (cpu_sync_arburst ),
-  .m_axi_arlock  (cpu_sync_arlock  ),
-  .m_axi_arcache (cpu_sync_arcache ),
-  .m_axi_arprot  (cpu_sync_arprot  ),
-  .m_axi_arqos   (                 ),
-  .m_axi_arvalid (cpu_sync_arvalid ),
-  .m_axi_arready (cpu_sync_arready ),
-  .m_axi_rid     (cpu_sync_rid     ),
-  .m_axi_rdata   (cpu_sync_rdata   ),
-  .m_axi_rresp   (cpu_sync_rresp   ),
-  .m_axi_rlast   (cpu_sync_rlast   ),
-  .m_axi_rvalid  (cpu_sync_rvalid  ),
-  .m_axi_rready  (cpu_sync_rready  ) 
-);
-
-
 axi_crossbar_1x2 u_axi_crossbar_1x2(
-    .aclk             ( sys_clk              ), // i, 1                 
-    .aresetn          ( sys_resetn           ), // i, 1                 
+    .aclk             ( cpu_wrap_aclk        ), // i, 1                 
+    .aresetn          ( cpu_wrap_aresetn     ), // i, 1                 
 
-    .s_axi_arid       ( cpu_sync_arid        ),
-    .s_axi_araddr     ( cpu_sync_araddr      ),
-    .s_axi_arlen      ( cpu_sync_arlen[3:0]  ),
-    .s_axi_arsize     ( cpu_sync_arsize      ),
-    .s_axi_arburst    ( cpu_sync_arburst     ),
-    .s_axi_arlock     ( cpu_sync_arlock      ),
-    .s_axi_arcache    ( cpu_sync_arcache     ),
-    .s_axi_arprot     ( cpu_sync_arprot      ),
+    .s_axi_arid       ( cpu_wrap_arid        ),
+    .s_axi_araddr     ( cpu_wrap_araddr      ),
+    .s_axi_arlen      ( cpu_wrap_arlen[3:0]  ),
+    .s_axi_arsize     ( cpu_wrap_arsize      ),
+    .s_axi_arburst    ( cpu_wrap_arburst     ),
+    .s_axi_arlock     ( cpu_wrap_arlock      ),
+    .s_axi_arcache    ( cpu_wrap_arcache     ),
+    .s_axi_arprot     ( cpu_wrap_arprot      ),
     .s_axi_arqos      ( 4'd0                 ),
-    .s_axi_arvalid    ( cpu_sync_arvalid     ),
-    .s_axi_arready    ( cpu_sync_arready     ),
-    .s_axi_rid        ( cpu_sync_rid         ),
-    .s_axi_rdata      ( cpu_sync_rdata       ),
-    .s_axi_rresp      ( cpu_sync_rresp       ),
-    .s_axi_rlast      ( cpu_sync_rlast       ),
-    .s_axi_rvalid     ( cpu_sync_rvalid      ),
-    .s_axi_rready     ( cpu_sync_rready      ),
-    .s_axi_awid       ( cpu_sync_awid        ),
-    .s_axi_awaddr     ( cpu_sync_awaddr      ),
-    .s_axi_awlen      ( cpu_sync_awlen[3:0]  ),
-    .s_axi_awsize     ( cpu_sync_awsize      ),
-    .s_axi_awburst    ( cpu_sync_awburst     ),
-    .s_axi_awlock     ( cpu_sync_awlock      ),
-    .s_axi_awcache    ( cpu_sync_awcache     ),
-    .s_axi_awprot     ( cpu_sync_awprot      ),
+    .s_axi_arvalid    ( cpu_wrap_arvalid     ),
+    .s_axi_arready    ( cpu_wrap_arready     ),
+    .s_axi_rid        ( cpu_wrap_rid         ),
+    .s_axi_rdata      ( cpu_wrap_rdata       ),
+    .s_axi_rresp      ( cpu_wrap_rresp       ),
+    .s_axi_rlast      ( cpu_wrap_rlast       ),
+    .s_axi_rvalid     ( cpu_wrap_rvalid      ),
+    .s_axi_rready     ( cpu_wrap_rready      ),
+    .s_axi_awid       ( cpu_wrap_awid        ),
+    .s_axi_awaddr     ( cpu_wrap_awaddr      ),
+    .s_axi_awlen      ( cpu_wrap_awlen[3:0]  ),
+    .s_axi_awsize     ( cpu_wrap_awsize      ),
+    .s_axi_awburst    ( cpu_wrap_awburst     ),
+    .s_axi_awlock     ( cpu_wrap_awlock      ),
+    .s_axi_awcache    ( cpu_wrap_awcache     ),
+    .s_axi_awprot     ( cpu_wrap_awprot      ),
     .s_axi_awqos      ( 4'd0                 ),
-    .s_axi_awvalid    ( cpu_sync_awvalid     ),
-    .s_axi_awready    ( cpu_sync_awready     ),
-    .s_axi_wid        ( cpu_sync_wid         ),
-    .s_axi_wdata      ( cpu_sync_wdata       ),
-    .s_axi_wstrb      ( cpu_sync_wstrb       ),
-    .s_axi_wlast      ( cpu_sync_wlast       ),
-    .s_axi_wvalid     ( cpu_sync_wvalid      ),
-    .s_axi_wready     ( cpu_sync_wready      ),
-    .s_axi_bid        ( cpu_sync_bid         ),
-    .s_axi_bresp      ( cpu_sync_bresp       ),
-    .s_axi_bvalid     ( cpu_sync_bvalid      ),
-    .s_axi_bready     ( cpu_sync_bready      ),
+    .s_axi_awvalid    ( cpu_wrap_awvalid     ),
+    .s_axi_awready    ( cpu_wrap_awready     ),
+    .s_axi_wid        ( cpu_wrap_wid         ),
+    .s_axi_wdata      ( cpu_wrap_wdata       ),
+    .s_axi_wstrb      ( cpu_wrap_wstrb       ),
+    .s_axi_wlast      ( cpu_wrap_wlast       ),
+    .s_axi_wvalid     ( cpu_wrap_wvalid      ),
+    .s_axi_wready     ( cpu_wrap_wready      ),
+    .s_axi_bid        ( cpu_wrap_bid         ),
+    .s_axi_bresp      ( cpu_wrap_bresp       ),
+    .s_axi_bvalid     ( cpu_wrap_bvalid      ),
+    .s_axi_bready     ( cpu_wrap_bready      ),
 
     .m_axi_arid       ( {ram_arid   ,conf_arid   } ),
     .m_axi_araddr     ( {ram_araddr ,conf_araddr } ),
@@ -632,8 +496,8 @@ axi_crossbar_1x2 u_axi_crossbar_1x2(
 //axi ram
 axi_wrap_ram u_axi_ram
 (
-    .aclk          ( sys_clk          ),
-    .aresetn       ( sys_resetn       ),
+    .aclk          ( cpu_clk          ),
+    .aresetn       ( cpu_resetn       ),
     //ar
     .axi_arid      ( ram_arid         ),
     .axi_araddr    ( ram_araddr       ),
@@ -683,9 +547,9 @@ axi_wrap_ram u_axi_ram
 //confreg
 confreg #(.SIMULATION(SIMULATION)) u_confreg
 (
-    .timer_clk   ( sys_clk    ),  // i, 1   
-    .aclk        ( sys_clk    ),  // i, 1   
-    .aresetn     ( sys_resetn ),  // i, 1    
+    .timer_clk   ( timer_clk  ),  // i, 1   
+    .aclk        ( cpu_clk    ),  // i, 1   
+    .aresetn     ( cpu_resetn ),  // i, 1    
 
     .arid        (conf_arid    ),
     .araddr      (conf_araddr  ),

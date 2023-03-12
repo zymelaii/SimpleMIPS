@@ -41,6 +41,7 @@ uint32_t    mem_result;
 
 // forward bus
 logic op_mfc0;
+logic op_tlb;
 
 // exception
 logic op_eret;
@@ -91,8 +92,10 @@ mem_load u_mem_load (
 
 // forward bus
 assign op_mfc0 = pms_to_ms_bus_r.c0_op[2] & ms_to_ws_valid;
+assign op_tlb  = (pms_to_ms_bus_r.tlb_op[0] | pms_to_ms_bus_r.tlb_op[1] | pms_to_ms_bus_r.tlb_op[2] ) & ms_to_ws_valid;
 assign ms_forward_bus = { op_mfc0,
                           res_from_mem,
+                          op_tlb,
                           rf_we,
                           pms_to_ms_bus_r.dest & {5{ms_to_ws_valid || res_from_mem || res_to_mem}},
                           final_result
@@ -120,6 +123,7 @@ assign ms_to_ws_bus = { ms_to_ws_valid,
                         pms_to_ms_bus_r.dest,
                         final_result,
                         pms_to_ms_bus_r.pc,
-                        exception};
+                        exception,
+                        pms_to_ms_bus_r.tlb_op};
 
 endmodule

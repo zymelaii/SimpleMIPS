@@ -8,6 +8,7 @@ module inst_decoder (
 wire        alu_ov;
 wire [11:0] alu_op;
 wire [11:0] br_op;
+wire [ 2:0] tlb_op;
 wire [ 7:0] hi_lo_op;
 wire [ 6:0] load_op;
 wire [ 4:0] store_op;
@@ -71,6 +72,8 @@ wire        inst_beq, inst_bne, inst_bgez, inst_bgtz, inst_blez, inst_bltz, inst
 wire        inst_j, inst_jal, inst_jr, inst_jalr;
 // invalid
 wire        inst_invalid;
+// tlb
+wire        inst_tlbp, inst_tlbr, inst_tlbwi;
 
 assign op   = inst[31:26];
 assign rs   = inst[25:21];
@@ -167,8 +170,14 @@ assign inst_j      = op_d[6'h02];
 assign inst_jal    = op_d[6'h03];
 assign inst_jr     = op_d[6'h00] & func_d[6'h08] & rt_d[5'h00] & rd_d[5'h00] & sa_d[5'h00];
 assign inst_jalr   = op_d[6'h00] & func_d[6'h09] & rt_d[5'h00] & sa_d[5'h00];
+// tlb
+assign inst_tlbp   = (inst == 32'h42000008);
+assign inst_tlbr   = (inst == 32'h42000001);
+assign inst_tlbwi  = (inst == 32'h42000002);
 // invalid
-assign inst_invalid= (~|alu_op) & (~|hi_lo_op) & (~|br_op) & ~inst_syscall & ~inst_break & ~inst_mfc0 & ~inst_mtc0 & ~inst_eret;
+assign inst_invalid= (~|alu_op) & (~|hi_lo_op) & (~|br_op) 
+                    & ~inst_syscall & ~inst_break & ~inst_mfc0 & ~inst_mtc0 & ~inst_eret
+                    & ~inst_tlbp    & ~inst_tlbr  & ~inst_tlbwi;
 
 
 assign alu_ov     = inst_add  | inst_addi | inst_sub;
@@ -226,6 +235,10 @@ assign c0_op[ 0] = inst_eret;
 assign c0_op[ 1] = inst_mtc0;
 assign c0_op[ 2] = inst_mfc0;
 
+assign tlb_op[0] = inst_tlbp;
+assign tlb_op[1] = inst_tlbr;
+assign tlb_op[2] = inst_tlbwi;
+
 assign src1_is_sa   = inst_sll   | inst_srl    | inst_sra;
 assign src1_is_pc   = inst_jal   | inst_jalr   | inst_bgezal | inst_bltzal;
 assign src2_is_simm = inst_addiu | inst_addi   | 
@@ -258,6 +271,7 @@ assign inst_d = {inst_invalid,
                  alu_op,
                  alu_ov,
                  br_op,
+                 tlb_op,
                  hi_lo_op,
                  load_op,
                  store_op,

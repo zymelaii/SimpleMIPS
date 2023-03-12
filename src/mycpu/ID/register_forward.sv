@@ -8,22 +8,26 @@ module register_forward(
     input uint32_t   rf_rdata2,
     // es forward
     input            es_mfc0,
+    input            es_tlb,
     input            es_load,
     input reg_addr_t es_dest,
     input uint32_t   es_result,
     // pms forward
     input            pms_mfc0,
+    input            pms_tlb,
     input            pms_load,
     input reg_addr_t pms_dest,
     input uint32_t   pms_result,
     // ms forward
     input            ms_mfc0,
+    input            ms_tlb,
     input            ms_load,
     input [ 3:0]     ms_rf_we,
     input reg_addr_t ms_dest,
     input uint32_t   ms_result,
     // ws forward
     input            ws_mfc0,
+    input            ws_tlb,
     input [ 3:0]     ws_rf_we,
     input reg_addr_t ws_dest,
     input uint32_t   ws_result,
@@ -45,7 +49,8 @@ assign ds_stall = ds_valid &
                 ( ( es_load  & (rs_wait & (inst_d.rs == es_dest ) | rt_wait & (inst_d.rt == es_dest )) )
                 | ( pms_load & (rs_wait & (inst_d.rs == pms_dest) | rt_wait & (inst_d.rt == pms_dest)) )
                 | ( ms_load  & (rs_wait & (inst_d.rs == ms_dest ) | rt_wait & (inst_d.rt == ms_dest )) )
-                | ( (es_mfc0 | pms_mfc0 | ms_mfc0 | ws_mfc0) & (rs_wait | rt_wait) ) ); //* load指令冲突, mfc0冲突
+                | ( (es_mfc0 | pms_mfc0 | ms_mfc0 | ws_mfc0) & (rs_wait | rt_wait) ) )
+                | ( (es_tlb  | pms_tlb  | ms_tlb  | ws_tlb)); //* load指令冲突, mfc0冲突, tlb指令
 
 // bypass
 assign rs_value = !rs_wait             ? rf_rdata1                                           :
